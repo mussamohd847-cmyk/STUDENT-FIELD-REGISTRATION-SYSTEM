@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log In — SFPMS</title>
+<link rel="icon" href="../assets/images/eGAZ.png">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+</head>
+<body class="auth-page">
+
+<div class="auth-box">
+  <div class="brand">
+    <img src="../assets/images/eGAZ.png" alt="SFPMS logo">
+    <h1>Welcome Back</h1>
+    <p>Log in to your SFPMS account</p>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <form id="loginForm">
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input type="email" id="email" name="email" required placeholder="you@sfpms.edu">
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required placeholder="••••••••">
+    </div>
+    <button type="submit" class="btn btn-primary btn-block">Log In</button>
+  </form>
+
+  <p class="auth-footer">Don't have an account? <a href="register.html">Register here</a></p>
+
+  <div class="demo-accounts">
+    <b>Demo accounts</b> (password: <code>Password123!</code>)<br>
+    Admin: admin@sfpms.edu<br>
+    Field Supervisor: fieldsup@sfpms.edu<br>
+    Academic Supervisor: acadsup@sfpms.edu<br>
+    Student: student@sfpms.edu
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+  window.auth.redirectIfAuthenticated();
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Logging in...';
+    const alertBox = document.getElementById('alertBox');
+    alertBox.innerHTML = '';
+    try {
+      const user = await window.auth.login(
+        document.getElementById('email').value,
+        document.getElementById('password').value
+      );
+      window.location.href = window.auth.homeFor(user.role);
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Log In';
+    }
+  });
+</script>
+</body>
+</html>

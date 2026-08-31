@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register — SFPMS</title>
+<link rel="icon" href="../assets/images/eGAZ.png">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+</head>
+<body class="auth-page">
+
+<div class="auth-box" style="max-width:520px;">
+  <div class="brand">
+    <img src="../assets/images/eGAZ.png" alt="SFPMS logo">
+    <h1>Create Your Account</h1>
+    <p>Join the SFPMS platform</p>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <form id="registerForm">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" required placeholder="Jane Doe">
+      </div>
+      <div class="form-group">
+        <label for="role">Register As</label>
+        <select id="role" name="role" required>
+          <option value="student">Student</option>
+          <option value="field_supervisor">Field Supervisor</option>
+          <option value="academic_supervisor">Academic Supervisor</option>
+          <option value="admin">Administrator</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input type="email" id="email" name="email" required placeholder="you@sfpms.edu">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required minlength="6" placeholder="At least 6 characters">
+      </div>
+      <div class="form-group">
+        <label for="phone">Phone Number</label>
+        <input type="text" id="phone" name="phone" placeholder="07XXXXXXXX">
+      </div>
+    </div>
+
+    <!-- Student-only fields -->
+    <div id="studentFields" class="form-row">
+      <div class="form-group">
+        <label for="reg_no">Registration Number</label>
+        <input type="text" id="reg_no" name="reg_no" placeholder="CS/2024/0001">
+      </div>
+      <div class="form-group">
+        <label for="program">Program</label>
+        <input type="text" id="program" name="program" placeholder="BSc. Computer Science">
+      </div>
+    </div>
+    <div id="studentYearField" class="form-group">
+      <label for="year">Year of Study</label>
+      <input type="text" id="year" name="year" placeholder="Year 3">
+    </div>
+
+    <!-- Supervisor-only field -->
+    <div id="departmentField" class="form-group hidden">
+      <label for="department">Department</label>
+      <input type="text" id="department" name="department" placeholder="Computer Science">
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+  </form>
+
+  <p class="auth-footer">Already have an account? <a href="login.html">Log in here</a></p>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script>
+  window.auth.redirectIfAuthenticated();
+
+  const roleSelect = document.getElementById('role');
+  const studentFields = document.getElementById('studentFields');
+  const studentYearField = document.getElementById('studentYearField');
+  const departmentField = document.getElementById('departmentField');
+
+  function toggleFields() {
+    const isStudent = roleSelect.value === 'student';
+    const isSupervisor = roleSelect.value === 'field_supervisor' || roleSelect.value === 'academic_supervisor';
+    studentFields.classList.toggle('hidden', !isStudent);
+    studentYearField.classList.toggle('hidden', !isStudent);
+    departmentField.classList.toggle('hidden', !isSupervisor);
+  }
+  roleSelect.addEventListener('change', toggleFields);
+  toggleFields();
+
+  document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Creating account...';
+    const alertBox = document.getElementById('alertBox');
+    alertBox.innerHTML = '';
+
+    const payload = {
+      name: document.getElementById('name').value,
+      email: document.getElementById('email').value,
+      password: document.getElementById('password').value,
+      role: roleSelect.value,
+      phone: document.getElementById('phone').value,
+      reg_no: document.getElementById('reg_no').value,
+      program: document.getElementById('program').value,
+      year: document.getElementById('year').value,
+      department: document.getElementById('department').value
+    };
+
+    try {
+      const user = await window.auth.register(payload);
+      window.toast('Account created successfully!', 'success');
+      window.location.href = window.auth.homeFor(user.role);
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
+    }
+  });
+</script>
+</body>
+</html>
