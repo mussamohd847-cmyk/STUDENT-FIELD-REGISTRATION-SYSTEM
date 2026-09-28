@@ -1,0 +1,391 @@
+from flask import Blueprint, request, jsonify
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from database import db
+from models import User
+
+
+auth_bp = Blueprint("auth", __name__)
+
+
+ADMIN_USERNAME = "Administration"
+ADMIN_PASSWORD = "Administration"
+
+
+def ensure_admin_account():
+    admin = User.query.filter_by(
+        institutional_id=ADMIN_USERNAME
+    ).first()
+
+    if admin:
+        return admin
+
+    admin = User(
+        institutional_id=ADMIN_USERNAME,
+        name="Administration",
+        email=ADMIN_USERNAME,
+        phone="",
+        programme="Administration",
+        password=generate_password_hash(ADMIN_PASSWORD),
+        role="ADMIN",
+        status="ACTIVE",
+        batch_number=None
+    )
+
+    db.session.add(admin)
+    db.session.commit()
+
+    return admin
+
+
+def validate_password(password):
+    if len(password) < 8:
+        return False
+
+    has_uppercase = any(
+        char.isupper()
+        for char in password
+    )
+
+    has_number = any(
+        char.isdigit()
+        for char in password
+    )
+
+    has_symbol = any(
+        not char.isalnum()
+        for char in password
+    )
+
+    return (
+        has_uppercase
+        and has_number
+        and has_symbol
+    )
+
+
+@auth_bp.route("/register", methods=["POST"])
+def register():
+
+    data = request.get_json() or {}
+
+    institutional_id = (
+        data.get("institutional_id")
+        or ""
+    ).strip()
+
+    name = (
+        data.get("name")
+        or ""
+    ).strip()
+
+    email = (
+        data.get("email")
+        or ""
+    ).strip().lower()
+
+    phone = (
+        data.get("phone")
+        or ""
+    ).strip()
+
+    programme = (
+        data.get("programme")
+        or ""
+    ).strip()
+
+    password = data.get("password") or ""
+
+    if (
+        not institutional_id
+        or not name
+        or not email
+        or not password
+    ):
+        return jsonify({
+            "message": (
+                "Institutional ID, name, email "
+                "and password are required"
+            )
+        }), 400
+
+    if not validate_password(password):
+        return jsonify({
+            "message": (
+                "Password must contain at least "
+                "8 characters, one capital letter, "
+                "one number and one symbol"
+            )
+        }), 400
+
+    existing_user = User.query.filter_by(
+        institutional_id=institutional_id
+    ).first()
+
+    if existing_user:
+        return jsonify({
+            "message": "Institutional ID already registered"
+        }), 409
+
+    existing_email = User.query.filter_by(
+        email=email
+    ).first()
+
+    if existing_email:
+        return jsonify({
+            "message": "Email already registered"
+        }), 409
+
+    new_user = User(
+        institutional_id=institutional_id,
+        name=name,
+        email=email,
+        phone=phone,
+        programme=programme,
+        password=generate_password_hash(password),
+        role="STUDENT",
+        status="ACTIVE",
+        batch_number=None
+    )
+
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Student registered successfully",
+        "user_id": new_user.id
+    }), 201
+
+
+@auth_bp.route("/login", methods=["POST"])
+def login():
+
+    data = request.get_json() or {}
+
+    identifier = (
+        data.get("identifier")
+        or data.get("email")
+        or data.get("institutional_id")
+        or ""
+    ).strip()
+
+    password = data.get("password") or ""
+
+    if not identifier or not password:
+        return jsonify({
+            "message": (
+                "Email/Batch Number and password are required"
+            )
+        }), 400
+
+    # =========================================================
+    # ADMIN LOGIN
+    # =========================================================
+
+    if (
+        identifier == ADMIN_USERNAME
+        and password == ADMIN_PASSWORD
+    ):
+        admin = ensure_admin_account()
+
+        return jsonify({
+            "message": "Login successful",
+            "login_type": "ADMIN",
+            "access_level": "ADMIN",
+            "user": admin.to_dict()
+        }), 200
+
+    # =========================================================
+    # BATCH NUMBER LOGIN
+    # =========================================================
+
+    batch_user = User.query.filter_by(
+        batch_number=identifier
+    ).first()
+
+    if batch_user:
+
+        if batch_user.role != "STUDENT":
+            return jsonify({
+                "message": "Invalid login credentials"
+            }), 401
+
+        if batch_user.status != "ACTIVE":
+            return jsonify({
+                "message": "Your account is inactive"
+            }), 403
+
+        if not check_password_hash(
+            batch_user.password,
+            password
+        ):
+            return jsonify({
+                "message": (
+                    "Invalid Batch Number or password"
+                )
+            }), 401
+
+        return jsonify({
+            "message": "Login successful",
+            "login_type": "BATCH",
+            "access_level": "FULL_STUDENT",
+            "user": batch_user.to_dict()
+        }), 200
+
+    # =========================================================
+    # EMAIL LOGIN
+    # =========================================================
+
+    email_user = User.query.filter_by(
+        email=identifier.lower()
+    ).first()
+
+    if email_user:
+
+        if not check_password_hash(
+            email_user.password,
+            password
+        ):
+            return jsonify({
+                "message": "Invalid email or password"
+            }), 401
+
+        if email_user.status != "ACTIVE":
+            return jsonify({
+                "message": "Your account is inactive"
+            }), 403
+
+        # Student ambaye tayari amepewa Batch Number
+        # hawezi tena kutumia Email kuingia.
+        if email_user.role == "STUDENT":
+
+            if email_user.batch_number:
+                return jsonify({
+                    "message": (
+                        "Your application has been approved. "
+                        "Please logout and login using your "
+                        "Batch Number and your existing password."
+                    ),
+                    "requires_batch_login": True
+                }), 403
+
+            return jsonify({
+                "message": "Login successful",
+                "login_type": "EMAIL",
+                "access_level": "APPLICATION",
+                "user": email_user.to_dict()
+            }), 200
+
+        return jsonify({
+            "message": "Login successful",
+            "login_type": "ROLE",
+            "access_level": email_user.role,
+            "user": email_user.to_dict()
+        }), 200
+
+    # =========================================================
+    # INSTITUTIONAL ID LOGIN
+    # =========================================================
+
+    institutional_user = User.query.filter_by(
+        institutional_id=identifier
+    ).first()
+
+    if institutional_user:
+
+        if not check_password_hash(
+            institutional_user.password,
+            password
+        ):
+            return jsonify({
+                "message": "Invalid login credentials"
+            }), 401
+
+        if institutional_user.status != "ACTIVE":
+            return jsonify({
+                "message": "Your account is inactive"
+            }), 403
+
+        if institutional_user.role == "STUDENT":
+
+            if institutional_user.batch_number:
+                return jsonify({
+                    "message": (
+                        "Please login using your Batch Number."
+                    ),
+                    "requires_batch_login": True
+                }), 403
+
+            return jsonify({
+                "message": "Login successful",
+                "login_type": "EMAIL",
+                "access_level": "APPLICATION",
+                "user": institutional_user.to_dict()
+            }), 200
+
+        return jsonify({
+            "message": "Login successful",
+            "login_type": "ROLE",
+            "access_level": institutional_user.role,
+            "user": institutional_user.to_dict()
+        }), 200
+
+    return jsonify({
+        "message": "Invalid login credentials"
+    }), 401
+
+
+@auth_bp.route("/change-password", methods=["PUT"])
+def change_password():
+
+    data = request.get_json() or {}
+
+    user_id = data.get("user_id")
+    current_password = data.get("current_password")
+    new_password = data.get("new_password")
+
+    if (
+        not user_id
+        or not current_password
+        or not new_password
+    ):
+        return jsonify({
+            "message": (
+                "user_id, current_password and "
+                "new_password are required"
+            )
+        }), 400
+
+    if not validate_password(new_password):
+        return jsonify({
+            "message": (
+                "New password must contain at least "
+                "8 characters, one capital letter, "
+                "one number and one symbol"
+            )
+        }), 400
+
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({
+            "message": "User not found"
+        }), 404
+
+    if not check_password_hash(
+        user.password,
+        current_password
+    ):
+        return jsonify({
+            "message": "Current password is incorrect"
+        }), 401
+
+    user.password = generate_password_hash(
+        new_password
+    )
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Password updated successfully"
+    }), 200

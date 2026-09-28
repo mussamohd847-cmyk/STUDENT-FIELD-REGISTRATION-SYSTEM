@@ -1,0 +1,116 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f5f7fb;
+    color: #1f2937;
+    line-height: 1.7;
+}
+
+.daily-logbook {
+    width: 100%;
+    min-height: 100vh;
+    padding: 80px 20px;
+}
+
+.container {
+    width: 100%;
+    max-width: 1150px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.container h1 {
+    font-size: 42px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.container > p {
+    max-width: 850px;
+    margin: 0 0 28px;
+    text-align: left;
+    color: #64748b;
+    font-size: 17px;
+}
+
+.container h2 {
+    font-size: 28px;
+    color: #0f172a;
+    margin-top: 50px;
+    margin-bottom: 20px;
+}
+
+.container h2 + p {
+    color: #64748b;
+    font-size: 16px;
+    margin-bottom: 25px;
+}
+
+.container h2:last-of-type {
+    margin-top: 55px;
+}
+
+.container h2:last-of-type + p {
+    color: #475569;
+    font-size: 16px;
+}
+
+@media (max-width: 900px) {
+    .container {
+        padding: 45px 35px;
+    }
+}
+
+@media (max-width: 650px) {
+    .daily-logbook {
+        padding: 40px 15px;
+    }
+
+    .container {
+        padding: 35px 20px;
+    }
+
+    .container h1 {
+        font-size: 32px;
+    }
+
+    .container > p {
+        font-size: 15px;
+        margin-bottom: 35px;
+    }
+
+    .container h2 {
+        font-size: 23px;
+        margin-top: 40px;
+    }
+
+}
+
+@media (max-width: 400px) {
+    .daily-logbook {
+        padding: 25px 10px;
+    }
+
+    .container {
+        padding: 30px 15px;
+    }
+
+    .container h1 {
+        font-size: 28px;
+    }
+
+    .container h2 {
+        font-size: 21px;
+    }
+}
